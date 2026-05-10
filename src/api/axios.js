@@ -7,29 +7,53 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = sessionStorage.getItem("accessToken");
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
 api.interceptors.response.use(
   (response) => response,
+
   async (error) => {
-    const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
-      original._retry = true;
+    const originalRequest = error.config;
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url.includes("/auth/refresh")
+    ) {
+      originalRequest._retry = true;
+
       try {
-        const res = await axios.post("/api/auth/refresh", {}, { withCredentials: true });
-        const newToken = res.data.data.accessToken;
-        sessionStorage.setItem("accessToken", newToken);
-        original.headers.Authorization = `Bearer ${newToken}`;
-        return api(original);
-      } catch {
+        const response = await axios.post(
+          "/api/auth/refresh",
+          {},
+          {
+            withCredentials: true,
+          }
+        );
+
+        const newAccessToken = response.data.data.accessToken;
+
+        sessionStorage.setItem("accessToken", newAccessToken);
+
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+        return api(originalRequest);
+
+      } catch (refreshError) {
+        console.error("Refresh failed:", refreshError);
+
         sessionStorage.removeItem("accessToken");
-        window.location.href = "/login";
+
+        return Promise.reject(refreshError);
       }
     }
+
     return Promise.reject(error);
   }
 );

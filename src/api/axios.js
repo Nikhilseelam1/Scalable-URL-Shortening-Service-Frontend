@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true,
 });
 
@@ -30,7 +30,7 @@ api.interceptors.response.use(
 
       try {
         const response = await axios.post(
-          "/api/auth/refresh",
+          `${import.meta.env.VITE_API_URL}/auth/refresh`,
           {},
           {
             withCredentials: true,
@@ -41,13 +41,12 @@ api.interceptors.response.use(
 
         sessionStorage.setItem("accessToken", newAccessToken);
 
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        originalRequest.headers.Authorization =
+          `Bearer ${newAccessToken}`;
 
         return api(originalRequest);
 
       } catch (refreshError) {
-        console.error("Refresh failed:", refreshError);
-
         sessionStorage.removeItem("accessToken");
 
         return Promise.reject(refreshError);
